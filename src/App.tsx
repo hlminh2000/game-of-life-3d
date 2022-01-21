@@ -52,7 +52,7 @@ const shouldLive = ({
   if (currentlyAlive) {
     return aliveNeighbours >= rules.lower && aliveNeighbours <= rules.upper;
   }
-  return aliveNeighbours == rules.upper;
+  return aliveNeighbours === rules.upper;
 };
 
 const neighborTable = [

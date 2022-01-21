@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Canvas,
   MeshProps,
   useFrame,
   extend,
@@ -117,7 +116,7 @@ function Cell(
 ) {
   const {
     size,
-    alive,
+    // alive,
     coordinate: { x, y, z },
   } = props;
   const ref = React.useRef<any>();

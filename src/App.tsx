@@ -108,7 +108,7 @@ function Cell(
   const {
     size,
     // alive,
-    coordinate: { x, y, z },
+    // coordinate: { x, y, z },
   } = props;
   const ref = React.useRef<any>();
 

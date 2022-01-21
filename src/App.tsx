@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Canvas,
   MeshProps,
@@ -9,11 +9,55 @@ import {
 import range from "lodash/range";
 import _, { flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { Signal } from "signal-ts";
+import { softShadows } from "@react-three/drei";
 
 const cellSize = 0.5;
-const spacingFactor = 1.1;
-const cellCount = 30;
-const updateInterval = 1000;
+const spacingFactor = 1;
+const sceneDimentions = {
+  x: 30,
+  y: 30,
+  z: 30,
+};
+const rules = {
+  lower: 2,
+  upper: 3,
+
+  // lower: 5,
+  // upper: 7,
+
+  // lower: 3,
+  // upper: 6,
+
+  // lower: 4,
+  // upper: 9,
+};
+
+softShadows({
+  frustum: 3.75,
+  size: 0.005,
+  near: 9.5,
+  samples: 17,
+  rings: 11, // Rings (default: 11) must be a int
+});
+extend({ OrbitControls });
+
+const shouldLive = ({
+  currentlyAlive,
+  aliveNeighbours,
+}: {
+  currentlyAlive: boolean;
+  aliveNeighbours: number;
+}) => {
+  const alive = currentlyAlive;
+  const dead = !currentlyAlive;
+
+  return alive
+    ? aliveNeighbours >= rules.lower && aliveNeighbours <= rules.upper
+    : dead
+    ? aliveNeighbours == rules.upper
+    : false;
+};
 
 const neighborTable = [
   [-1, -1, -1],
@@ -46,8 +90,6 @@ const neighborTable = [
   [1, 1, 1],
 ];
 
-extend({ OrbitControls });
-
 const CameraControls = () => {
   // Get a reference to the Three.js Camera, and the canvas html element.
   // We need these to setup the OrbitControls component.
@@ -63,7 +105,7 @@ const CameraControls = () => {
   useEffect(() => {
     // camera.position.x = 20;
     // camera.position.y = 20;
-    camera.position.z = 50;
+    camera.position.z = 20;
   }, []);
   //@ts-ignore
   return <orbitControls ref={controls} args={[camera, domElement]} />;
@@ -97,94 +139,92 @@ function Cell(
     <mesh {...props} ref={ref} onClick={() => turn(!on)}>
       <boxGeometry args={[size, size, size]} />
       <meshLambertMaterial
-        color={on ? "purple" : "red"}
-        opacity={alive ? 1 : 0}
+        color={"orange"}
+        opacity={1}
+        // opacity={alive ? 1 : 0}
         transparent
       />
     </mesh>
   );
 }
 
-const shouldLive = ({
-  currentlyAlive,
-  aliveNeighbours,
-}: {
-  currentlyAlive: boolean;
-  aliveNeighbours: number;
-}) => {
-  const alive = currentlyAlive;
-  const dead = !currentlyAlive;
-
-  // let newLiveState: boolean = alive;
-  // if (alive) {
-  //   if (aliveNeighbours < 2) newLiveState = false;
-  //   else if (aliveNeighbours === 2 || aliveNeighbours === 3)
-  //     newLiveState = true;
-  //   else if (aliveNeighbours > 3) newLiveState = false;
-  // } else {
-  //   if (aliveNeighbours === 3) newLiveState = true;
-  // }
-  // return newLiveState;
-
-  return alive
-    ? aliveNeighbours >= 2 && aliveNeighbours <= 3
-    : dead
-    ? aliveNeighbours == 3
-    : false;
-};
-
 type CellState = {
   id: string;
   coordinate: { x: number; y: number; z: number };
   alive: boolean;
 };
-const App = () => {
-  const [cells, setCells] = React.useState(
-    flattenDeep<CellState>(
-      range(0, cellCount).map((x) =>
-        range(0, cellCount).map((y) =>
-          range(0, 1).map((z): CellState => {
-            const xCoord = x - cellCount / 2;
-            const yCoord = y - cellCount / 2;
-            const zCoord = z - 1 / 2;
-            return {
-              id: `(${xCoord})-(${yCoord})-(${zCoord})`,
-              coordinate: { x: xCoord, y: yCoord, z: zCoord },
-              // alive: Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 10,
-              alive: Math.random() < 0.5,
-            };
-          })
-        )
+
+const getRandomState = () =>
+  flattenDeep<CellState>(
+    range(0, sceneDimentions.x).map((x) =>
+      range(0, sceneDimentions.y).map((y) =>
+        range(0, sceneDimentions.z).map((z): CellState => {
+          const xCoord = x - sceneDimentions.x / 2;
+          const yCoord = y - sceneDimentions.y / 2;
+          const zCoord = z - sceneDimentions.z / 2;
+          return {
+            id: `(${xCoord})-(${yCoord})-(${zCoord})`,
+            coordinate: { x: xCoord, y: yCoord, z: zCoord },
+            alive:
+              Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 10 &&
+              Math.random() < 0.01,
+            // alive: [
+            //   Math.abs(xCoord),
+            //   Math.abs(yCoord),
+            //   Math.abs(zCoord),
+            // ].every((c) => c < 10),
+            // alive: Math.random() < 0.1,
+          };
+        })
       )
     )
   );
 
-  useEffect(() => {
-    setInterval(() => {
-      const indexedCells = cells.reduce((acc, c) => {
-        acc.set(c.id, c);
-        return acc;
-      }, new Map<string, CellState>());
-      const updatedCells = cells.map((c) => {
-        const neighbours = neighborTable
-          .map(([xOffset, yOffset, zOffset]) => ({
-            x: c.coordinate.x + xOffset,
-            y: c.coordinate.y + yOffset,
-            z: c.coordinate.z + zOffset,
-          }))
-          .map(({ x, y, z }) => indexedCells.get(`(${x})-(${y})-(${z})`));
-        const aliveSurroundingCells = neighbours.filter((c) => c?.alive).length;
-        const newLiveState = shouldLive({
-          aliveNeighbours: aliveSurroundingCells,
-          currentlyAlive: c.alive,
-        });
-        return {
-          ...c,
-          alive: newLiveState,
-        };
+const App = (props: { resetSignal: Signal<any> }) => {
+  const [cells, setCells] = React.useState(getRandomState);
+
+  const update = (cells: CellState[]) => {
+    const indexedCells = cells.reduce((acc, c) => {
+      acc[c.id] = c;
+      return acc;
+    }, {} as { [k: string]: CellState });
+
+    const updatedCells = cells.map((c) => {
+      const neighbours = neighborTable
+        .map(([xOffset, yOffset, zOffset]) => ({
+          x: c.coordinate.x + xOffset,
+          y: c.coordinate.y + yOffset,
+          z: c.coordinate.z + zOffset,
+        }))
+        .map(({ x, y, z }) => indexedCells[`(${x})-(${y})-(${z})`]);
+      const aliveSurroundingCells = neighbours.filter((c) => c?.alive).length;
+      const newLiveState = shouldLive({
+        aliveNeighbours: aliveSurroundingCells,
+        currentlyAlive: c.alive,
       });
-      setCells(updatedCells);
-    }, updateInterval);
+      return {
+        ...c,
+        alive: newLiveState,
+      };
+    });
+    setCells(updatedCells);
+  };
+
+  const renderCycle = useRef(0);
+  useFrame(() => {
+    renderCycle.current++;
+    if (renderCycle.current === 100) {
+      renderCycle.current = 0;
+      update(cells);
+    }
+  });
+
+  useEffect(() => {
+    props.resetSignal.add(() => {
+      console.log("yooo!!!!");
+      renderCycle.current = 0;
+      setCells(getRandomState());
+    });
   }, []);
 
   return (
@@ -193,7 +233,7 @@ const App = () => {
         const positioning = cellSize * spacingFactor;
         return alive ? (
           <Cell
-            alive
+            alive={alive}
             key={`(${x})-(${y})-(${z})`}
             coordinate={{ x, y, z }}
             size={cellSize}
@@ -206,16 +246,23 @@ const App = () => {
 };
 
 export default () => {
+  const [signal] = useState(new Signal<boolean>());
   return (
-    <div style={{ height: "100%" }}>
+    <div style={{ height: "100%", position: "relative" }}>
       <Canvas style={{ height: "100%" }}>
         <color attach="background" args={["black"]} />
         <ambientLight />
         <pointLight castShadow={true} position={[10, 10, 10]} />
         <pointLight castShadow={true} position={[20, 30, 10]} />
         <CameraControls />
-        <App />
+        <App resetSignal={signal} />
       </Canvas>
+      <button
+        onClick={() => signal.emit(true)}
+        style={{ position: "absolute", top: 0, left: 0 }}
+      >
+        reset
+      </button>
     </div>
   );
 };

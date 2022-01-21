@@ -6,7 +6,7 @@ import {
   useThree,
 } from "@react-three/fiber";
 import range from "lodash/range";
-import _, { flattenDeep } from "lodash";
+import { flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
@@ -22,15 +22,6 @@ const sceneDimentions = {
 const rules = {
   lower: 2,
   upper: 3,
-
-  // lower: 5,
-  // upper: 7,
-
-  // lower: 3,
-  // upper: 6,
-
-  // lower: 4,
-  // upper: 9,
 };
 
 softShadows({
@@ -102,7 +93,7 @@ const CameraControls = () => {
     // camera.position.x = 20;
     // camera.position.y = 20;
     camera.position.z = 20;
-  }, []);
+  }, [camera]);
   //@ts-ignore
   return <orbitControls ref={controls} args={[camera, domElement]} />;
 };
@@ -122,18 +113,18 @@ function Cell(
   const ref = React.useRef<any>();
 
   const distanceFromOrigin = Math.abs(Math.sqrt(x ** 2 + y ** 2 + z ** 2));
-  const layer =
-    distanceFromOrigin <= 5
-      ? "blue"
-      : distanceFromOrigin > 5 && distanceFromOrigin <= 10
-      ? "purple"
-      : "orange";
+  // const layer =
+  //   distanceFromOrigin <= 5
+  //     ? "blue"
+  //     : distanceFromOrigin > 5 && distanceFromOrigin <= 10
+  //     ? "purple"
+  //     : "orange";
 
   const [on, turn] = useState(false);
 
   return (
-    <mesh {...props} ref={ref} onClick={() => turn(!on)}>
-      <boxGeometry args={[size, size, size]} />
+    <mesh castShadow receiveShadow {...props} ref={ref} onClick={() => turn(!on)}>
+      <boxGeometry  args={[size, size, size]} />
       <meshLambertMaterial
         color={"orange"}
         opacity={1}
@@ -224,11 +215,10 @@ const App = (props: { resetSignal: Signal<any> }) => {
 
   useEffect(() => {
     props.resetSignal.add(() => {
-      console.log("yooo!!!!");
       renderCycle.current = 0;
       setCells(getRandomState());
     });
-  }, []);
+  }, [props.resetSignal]);
 
   return (
     <>
@@ -248,19 +238,17 @@ const App = (props: { resetSignal: Signal<any> }) => {
   );
 };
 
-export default () => {
+const WebApp = () => {
   const [signal] = useState(new Signal<boolean>());
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <VRCanvas>
-        {/* <Canvas style={{ height: "100%" }}> */}
         <color attach="background" args={["black"]} />
-        <ambientLight />
-        <pointLight castShadow={true} position={[10, 10, 10]} />
-        <pointLight castShadow={true} position={[20, 30, 10]} />
+        <ambientLight castShadow />
+        <pointLight castShadow position={[10, 10, 10]} />
+        <pointLight castShadow position={[20, 30, 10]} />
         <CameraControls />
         <App resetSignal={signal} />
-        {/* </Canvas> */}
       </VRCanvas>
       <button
         onClick={() => signal.emit(true)}
@@ -271,3 +259,5 @@ export default () => {
     </div>
   );
 };
+
+export default WebApp;

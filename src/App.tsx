@@ -11,13 +11,14 @@ import _, { flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
+import { VRCanvas } from "@react-three/xr";
 
 const cellSize = 0.5;
 const spacingFactor = 1;
 const sceneDimentions = {
-  x: 30,
-  y: 30,
-  z: 30,
+  x: 50,
+  y: 50,
+  z: 50,
 };
 const rules = {
   lower: 2,
@@ -49,14 +50,10 @@ const shouldLive = ({
   currentlyAlive: boolean;
   aliveNeighbours: number;
 }) => {
-  const alive = currentlyAlive;
-  const dead = !currentlyAlive;
-
-  return alive
-    ? aliveNeighbours >= rules.lower && aliveNeighbours <= rules.upper
-    : dead
-    ? aliveNeighbours == rules.upper
-    : false;
+  if (currentlyAlive) {
+    return aliveNeighbours >= rules.lower && aliveNeighbours <= rules.upper;
+  }
+  return aliveNeighbours == rules.upper;
 };
 
 const neighborTable = [
@@ -184,11 +181,15 @@ const App = (props: { resetSignal: Signal<any> }) => {
   const [cells, setCells] = React.useState(getRandomState);
 
   const update = (cells: CellState[]) => {
+    console.log("============");
+    console.time("compute");
+    console.time("index");
     const indexedCells = cells.reduce((acc, c) => {
       acc[c.id] = c;
       return acc;
     }, {} as { [k: string]: CellState });
-
+    console.timeEnd("index");
+    console.time("update");
     const updatedCells = cells.map((c) => {
       const neighbours = neighborTable
         .map(([xOffset, yOffset, zOffset]) => ({
@@ -202,11 +203,14 @@ const App = (props: { resetSignal: Signal<any> }) => {
         aliveNeighbours: aliveSurroundingCells,
         currentlyAlive: c.alive,
       });
+
       return {
         ...c,
         alive: newLiveState,
       };
     });
+    console.timeEnd("update");
+    console.timeEnd("compute");
     setCells(updatedCells);
   };
 
@@ -249,14 +253,16 @@ export default () => {
   const [signal] = useState(new Signal<boolean>());
   return (
     <div style={{ height: "100%", position: "relative" }}>
-      <Canvas style={{ height: "100%" }}>
+      <VRCanvas>
+        {/* <Canvas style={{ height: "100%" }}> */}
         <color attach="background" args={["black"]} />
         <ambientLight />
         <pointLight castShadow={true} position={[10, 10, 10]} />
         <pointLight castShadow={true} position={[20, 30, 10]} />
         <CameraControls />
         <App resetSignal={signal} />
-      </Canvas>
+        {/* </Canvas> */}
+      </VRCanvas>
       <button
         onClick={() => signal.emit(true)}
         style={{ position: "absolute", top: 0, left: 0 }}

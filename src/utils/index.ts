@@ -4,6 +4,7 @@ export type CellState = {
   id: string;
   coordinate: { x: number; y: number; z: number };
   alive: boolean;
+  aliveNeighbourCount: number;
 };
 
 const neighborTable = [

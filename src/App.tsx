@@ -7,6 +7,7 @@ import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
 import { VRCanvas } from "@react-three/xr";
 import { CellState } from "./utils";
+import Gradient from "javascript-color-gradient";
 
 const cellSize = 0.5;
 const spacingFactor = 1;
@@ -34,9 +35,9 @@ const CameraControls = () => {
   //@ts-ignore
   useFrame((state) => controls.current.update());
   useEffect(() => {
-    camera.position.x = 10;
-    camera.position.y = 10;
-    camera.position.z = 10;
+    // camera.position.x = 10;
+    // camera.position.y = 10;
+    camera.position.z = 20;
   }, [camera]);
   //@ts-ignore
   return <orbitControls ref={controls} args={[camera, domElement]} />;
@@ -47,12 +48,16 @@ function Cell(
     size: number;
     alive: boolean;
     coordinate: { x: number; y: number; z: number };
+    aliveNeighbourCount: number;
   }
 ) {
-  const { size } = props;
+  const { size, aliveNeighbourCount } = props;
   const ref = React.useRef<any>();
 
   const [on, turn] = useState(false);
+  const [colorGradient] = useState(
+    new Gradient().setGradient("#151f6d", "#ff35a0", "#f68c20").setMidpoint(7)
+  );
 
   return (
     <mesh
@@ -63,7 +68,10 @@ function Cell(
       onClick={() => turn(!on)}
     >
       <boxGeometry args={[size, size, size]} />
-      <meshLambertMaterial color={"orange"} transparent />
+      <meshLambertMaterial
+        color={colorGradient.getColor(aliveNeighbourCount + 1)}
+        transparent
+      />
     </mesh>
   );
 }
@@ -82,6 +90,7 @@ const getRandomState = () =>
             alive:
               Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 5 &&
               Math.random() < 0.01,
+            aliveNeighbourCount: 0,
           };
         })
       )
@@ -100,8 +109,8 @@ const Container = () => {
       />
       <meshStandardMaterial
         depthWrite={false}
-        color={"white"}
-        opacity={0.2}
+        color={"black"}
+        opacity={0.1}
         transparent
       />
     </mesh>
@@ -148,7 +157,7 @@ const App = (props: { resetSignal: Signal<any> }) => {
   const renderCycle = useRef(0);
   useFrame(() => {
     renderCycle.current++;
-    if (renderCycle.current === 10) {
+    if (renderCycle.current === 20) {
       renderCycle.current = 0;
       update(cells);
     }
@@ -174,7 +183,7 @@ const App = (props: { resetSignal: Signal<any> }) => {
 
   return (
     <>
-      {cells.map(({ coordinate: { x, y, z }, alive }) => {
+      {cells.map(({ coordinate: { x, y, z }, alive, aliveNeighbourCount }) => {
         const positioning = cellSize * spacingFactor;
         return alive ? (
           <Cell
@@ -183,6 +192,7 @@ const App = (props: { resetSignal: Signal<any> }) => {
             coordinate={{ x, y, z }}
             size={cellSize}
             position={[x * positioning, y * positioning, z * positioning]}
+            aliveNeighbourCount={aliveNeighbourCount}
           />
         ) : null;
       })}
@@ -195,7 +205,7 @@ const WebApp = () => {
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <VRCanvas>
-        <color attach="background" args={["black"]} />
+        {/* <color attach="background" args={["black"]} /> */}
         <ambientLight castShadow />
         <directionalLight castShadow position={[10, 10, 10]} />
         <directionalLight castShadow position={[-20, 30, 10]} />

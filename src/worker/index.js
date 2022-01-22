@@ -65,6 +65,7 @@ const computeNextState = (cells) => {
     return {
       ...c,
       alive: newLiveState,
+      aliveNeighbourCount: aliveSurroundingCells,
     };
   });
 

@@ -1,27 +1,19 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  MeshProps,
-  useFrame,
-  extend,
-  useThree,
-} from "@react-three/fiber";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { MeshProps, useFrame, extend, useThree } from "@react-three/fiber";
 import range from "lodash/range";
 import { flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
 import { VRCanvas } from "@react-three/xr";
+import { CellState } from "./utils";
 
 const cellSize = 0.5;
 const spacingFactor = 1;
 const sceneDimentions = {
-  x: 50,
-  y: 50,
-  z: 50,
-};
-const rules = {
-  lower: 2,
-  upper: 3,
+  x: 30,
+  y: 30,
+  z: 30,
 };
 
 softShadows({
@@ -33,66 +25,18 @@ softShadows({
 });
 extend({ OrbitControls });
 
-const shouldLive = ({
-  currentlyAlive,
-  aliveNeighbours,
-}: {
-  currentlyAlive: boolean;
-  aliveNeighbours: number;
-}) => {
-  if (currentlyAlive) {
-    return aliveNeighbours >= rules.lower && aliveNeighbours <= rules.upper;
-  }
-  return aliveNeighbours === rules.upper;
-};
-
-const neighborTable = [
-  [-1, -1, -1],
-  [-1, -1, 0],
-  [-1, -1, 1],
-  [-1, 0, -1],
-  [-1, 0, 0],
-  [-1, 0, 1],
-  [-1, 1, -1],
-  [-1, 1, 0],
-  [-1, 1, 1],
-
-  [0, -1, -1],
-  [0, -1, 0],
-  [0, -1, 1],
-  [0, 0, -1],
-  [0, 0, 1],
-  [0, 1, -1],
-  [0, 1, 0],
-  [0, 1, 1],
-
-  [1, -1, -1],
-  [1, -1, 0],
-  [1, -1, 1],
-  [1, 0, -1],
-  [1, 0, 0],
-  [1, 0, 1],
-  [1, 1, -1],
-  [1, 1, 0],
-  [1, 1, 1],
-];
-
 const CameraControls = () => {
-  // Get a reference to the Three.js Camera, and the canvas html element.
-  // We need these to setup the OrbitControls component.
-  // https://threejs.org/docs/#examples/en/controls/OrbitControls
   const {
     camera,
     gl: { domElement },
   } = useThree();
-  // Ref to the controls, so that we can update them on every frame using useFrame
   const controls = React.useRef();
   //@ts-ignore
   useFrame((state) => controls.current.update());
   useEffect(() => {
-    // camera.position.x = 20;
-    // camera.position.y = 20;
-    camera.position.z = 20;
+    camera.position.x = 10;
+    camera.position.y = 10;
+    camera.position.z = 10;
   }, [camera]);
   //@ts-ignore
   return <orbitControls ref={controls} args={[camera, domElement]} />;
@@ -105,41 +49,24 @@ function Cell(
     coordinate: { x: number; y: number; z: number };
   }
 ) {
-  const {
-    size,
-    // alive,
-    // coordinate: { x, y, z },
-  } = props;
+  const { size } = props;
   const ref = React.useRef<any>();
-
-  // const distanceFromOrigin = Math.abs(Math.sqrt(x ** 2 + y ** 2 + z ** 2));
-  // const layer =
-  //   distanceFromOrigin <= 5
-  //     ? "blue"
-  //     : distanceFromOrigin > 5 && distanceFromOrigin <= 10
-  //     ? "purple"
-  //     : "orange";
 
   const [on, turn] = useState(false);
 
   return (
-    <mesh castShadow receiveShadow {...props} ref={ref} onClick={() => turn(!on)}>
-      <boxGeometry  args={[size, size, size]} />
-      <meshLambertMaterial
-        color={"orange"}
-        opacity={1}
-        // opacity={alive ? 1 : 0}
-        transparent
-      />
+    <mesh
+      castShadow
+      receiveShadow
+      {...props}
+      ref={ref}
+      onClick={() => turn(!on)}
+    >
+      <boxGeometry args={[size, size, size]} />
+      <meshLambertMaterial color={"orange"} transparent />
     </mesh>
   );
 }
-
-type CellState = {
-  id: string;
-  coordinate: { x: number; y: number; z: number };
-  alive: boolean;
-};
 
 const getRandomState = () =>
   flattenDeep<CellState>(
@@ -153,72 +80,97 @@ const getRandomState = () =>
             id: `(${xCoord})-(${yCoord})-(${zCoord})`,
             coordinate: { x: xCoord, y: yCoord, z: zCoord },
             alive:
-              Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 10 &&
+              Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 5 &&
               Math.random() < 0.01,
-            // alive: [
-            //   Math.abs(xCoord),
-            //   Math.abs(yCoord),
-            //   Math.abs(zCoord),
-            // ].every((c) => c < 10),
-            // alive: Math.random() < 0.1,
           };
         })
       )
     )
   );
 
+const Container = () => {
+  return (
+    <mesh castShadow receiveShadow>
+      <boxGeometry
+        args={[
+          cellSize * sceneDimentions.x + cellSize,
+          cellSize * sceneDimentions.y + cellSize,
+          cellSize * sceneDimentions.z + cellSize,
+        ]}
+      />
+      <meshStandardMaterial
+        depthWrite={false}
+        color={"white"}
+        opacity={0.2}
+        transparent
+      />
+    </mesh>
+  );
+};
+
 const App = (props: { resetSignal: Signal<any> }) => {
   const [cells, setCells] = React.useState(getRandomState);
+  // const worker = useWorker(createWorker);
 
-  const update = (cells: CellState[]) => {
-    console.log("============");
-    console.time("compute");
-    console.time("index");
-    const indexedCells = cells.reduce((acc, c) => {
-      acc[c.id] = c;
-      return acc;
-    }, {} as { [k: string]: CellState });
-    console.timeEnd("index");
-    console.time("update");
-    const updatedCells = cells.map((c) => {
-      const neighbours = neighborTable
-        .map(([xOffset, yOffset, zOffset]) => ({
-          x: c.coordinate.x + xOffset,
-          y: c.coordinate.y + yOffset,
-          z: c.coordinate.z + zOffset,
-        }))
-        .map(({ x, y, z }) => indexedCells[`(${x})-(${y})-(${z})`]);
-      const aliveSurroundingCells = neighbours.filter((c) => c?.alive).length;
-      const newLiveState = shouldLive({
-        aliveNeighbours: aliveSurroundingCells,
-        currentlyAlive: c.alive,
+  const [worker] = React.useState(
+    new Worker(new URL("./worker", import.meta.url))
+  );
+  const workerRequestId = useRef<number>();
+  const update = useCallback(
+    (cells: CellState[]) => {
+      // const newState = await worker.computeNextState(cells);
+      workerRequestId.current = Math.random();
+      worker.postMessage({
+        payload: cells,
+        requestId: workerRequestId.current,
       });
+    },
+    [worker]
+  );
 
-      return {
-        ...c,
-        alive: newLiveState,
+  React.useEffect(() => {
+    const handler = ({
+      data,
+    }: {
+      data: {
+        requestId: typeof workerRequestId.current;
+        result: CellState[];
       };
-    });
-    console.timeEnd("update");
-    console.timeEnd("compute");
-    setCells(updatedCells);
-  };
+    }) => {
+      if (data.requestId === workerRequestId.current) {
+        setCells(data.result);
+      }
+    };
+    worker.addEventListener("message", handler);
+    return () => worker.removeEventListener("message", handler);
+  }, [worker]);
 
   const renderCycle = useRef(0);
   useFrame(() => {
     renderCycle.current++;
-    if (renderCycle.current === 100) {
+    if (renderCycle.current === 10) {
       renderCycle.current = 0;
       update(cells);
     }
   });
 
+  const reset = () => {
+    workerRequestId.current = undefined;
+    renderCycle.current = 0;
+    setCells(getRandomState());
+  };
+
   useEffect(() => {
-    props.resetSignal.add(() => {
-      renderCycle.current = 0;
-      setCells(getRandomState());
-    });
+    props.resetSignal.add(reset);
   }, [props.resetSignal]);
+
+  useEffect(() => {
+    if (cells.every((cell) => !cell.alive)) {
+      setTimeout(() => {
+        reset();
+      }, 0);
+    }
+  }, [cells]);
 
   return (
     <>
@@ -245,10 +197,11 @@ const WebApp = () => {
       <VRCanvas>
         <color attach="background" args={["black"]} />
         <ambientLight castShadow />
-        <pointLight castShadow position={[10, 10, 10]} />
-        <pointLight castShadow position={[20, 30, 10]} />
+        <directionalLight castShadow position={[10, 10, 10]} />
+        <directionalLight castShadow position={[-20, 30, 10]} />
         <CameraControls />
         <App resetSignal={signal} />
+        <Container />
       </VRCanvas>
       <button
         onClick={() => signal.emit(true)}

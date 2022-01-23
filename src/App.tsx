@@ -3,15 +3,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { MeshProps, useFrame, extend, useThree } from "@react-three/fiber";
+import {  useFrame, extend, useThree } from "@react-three/fiber";
 import range from "lodash/range";
-import { flattenDeep, size } from "lodash";
+import { flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
 import { VRCanvas } from "@react-three/xr";
 import { CellState } from "./utils";
-import Gradient from "javascript-color-gradient";
 import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
 
 const cellSize = 0.5;

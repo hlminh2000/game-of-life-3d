@@ -43,11 +43,11 @@ const shouldLive = ({ currentlyAlive, aliveNeighbours }) => {
 
 const cellId = (x, y, z) => `(${x})-(${y})-(${z})`;
 const computeNextState = (cells) => {
+  console.time('compute')
   const cellsIndex = cells.reduce((acc, c) => {
     acc[c.id] = c;
     return acc;
   }, {});
-
   const updatedCells = cells.map((c) => {
     const neighbours = neighborTable
       .map(([xOffset, yOffset, zOffset]) => ({
@@ -68,7 +68,7 @@ const computeNextState = (cells) => {
       aliveNeighbourCount: aliveSurroundingCells,
     };
   });
-
+  console.timeEnd('compute')
   return updatedCells;
 };
 

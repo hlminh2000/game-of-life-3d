@@ -1,20 +1,27 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { MeshProps, useFrame, extend, useThree } from "@react-three/fiber";
 import range from "lodash/range";
-import { flattenDeep } from "lodash";
+import { flattenDeep, size } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
 import { VRCanvas } from "@react-three/xr";
 import { CellState } from "./utils";
 import Gradient from "javascript-color-gradient";
+import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
 
 const cellSize = 0.5;
 const spacingFactor = 1;
 const sceneDimentions = {
-  x: 30,
-  y: 30,
-  z: 30,
+  x: 40,
+  y: 40,
+  z: 40,
 };
 
 softShadows({
@@ -56,7 +63,7 @@ function Cell(
 
   const [on, turn] = useState(false);
   const [colorGradient] = useState(
-    new Gradient().setGradient("#151f6d", "#ff35a0", "#f68c20").setMidpoint(7)
+    new Gradient().setGradient("#90ee90", "#00FF00").setMidpoint(4)
   );
 
   return (
@@ -69,7 +76,7 @@ function Cell(
     >
       <boxGeometry args={[size, size, size]} />
       <meshLambertMaterial
-        color={colorGradient.getColor(aliveNeighbourCount + 1)}
+        color={colorGradient.getArray()[aliveNeighbourCount]}
         transparent
       />
     </mesh>
@@ -109,7 +116,7 @@ const Container = () => {
       />
       <meshStandardMaterial
         depthWrite={false}
-        color={"black"}
+        color={"white"}
         opacity={0.1}
         transparent
       />
@@ -117,26 +124,35 @@ const Container = () => {
   );
 };
 
+const boxGeometry = new BoxGeometry(cellSize, cellSize, cellSize);
+const material = new MeshLambertMaterial({ color: "orange" });
+material.transparent = true
+const meshes = getRandomState()
+  .map(({ coordinate: { x, y, z }, id }) => {
+    const positioning = cellSize * spacingFactor;
+    const mesh = new Mesh(boxGeometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.position.x = x * positioning;
+    mesh.position.y = y * positioning;
+    mesh.position.z = z * positioning;
+    return { id, mesh };
+  })
+  .reduce(
+    (acc, { id, mesh }) => {
+      acc[id] = mesh;
+      return acc
+    },
+    {} as { [k: string]: Mesh }
+  );
+
 const App = (props: { resetSignal: Signal<any> }) => {
   const [cells, setCells] = React.useState(getRandomState);
-  // const worker = useWorker(createWorker);
-
   const [worker] = React.useState(
     new Worker(new URL("./worker", import.meta.url))
   );
-  const workerRequestId = useRef<number>();
-  const update = useCallback(
-    (cells: CellState[]) => {
-      // const newState = await worker.computeNextState(cells);
-      workerRequestId.current = Math.random();
-      worker.postMessage({
-        payload: cells,
-        requestId: workerRequestId.current,
-      });
-    },
-    [worker]
-  );
 
+  const workerRequestId = useRef<number>();
   React.useEffect(() => {
     const handler = ({
       data,
@@ -154,18 +170,19 @@ const App = (props: { resetSignal: Signal<any> }) => {
     return () => worker.removeEventListener("message", handler);
   }, [worker]);
 
-  const renderCycle = useRef(0);
-  useFrame(() => {
-    renderCycle.current++;
-    if (renderCycle.current === 20) {
-      renderCycle.current = 0;
-      update(cells);
-    }
-  });
+  React.useEffect(() => {
+    const timeout = setTimeout(() => {
+      workerRequestId.current = Math.random();
+      worker.postMessage({
+        payload: cells,
+        requestId: workerRequestId.current,
+      });
+    }, 200);
+    return () => clearTimeout(timeout);
+  }, [cells]);
 
   const reset = () => {
     workerRequestId.current = undefined;
-    renderCycle.current = 0;
     setCells(getRandomState());
   };
 
@@ -175,28 +192,21 @@ const App = (props: { resetSignal: Signal<any> }) => {
 
   useEffect(() => {
     if (cells.every((cell) => !cell.alive)) {
-      setTimeout(() => {
-        reset();
-      }, 0);
+      reset();
     }
   }, [cells]);
 
+  const { scene } = useThree();
+
+  useFrame(() => {
+    cells.forEach((c) => {
+      if (c.alive) scene.add(meshes[c.id]);
+      else scene.remove(meshes[c.id]);
+    });
+  });
+
   return (
-    <>
-      {cells.map(({ coordinate: { x, y, z }, alive, aliveNeighbourCount }) => {
-        const positioning = cellSize * spacingFactor;
-        return alive ? (
-          <Cell
-            alive={alive}
-            key={`(${x})-(${y})-(${z})`}
-            coordinate={{ x, y, z }}
-            size={cellSize}
-            position={[x * positioning, y * positioning, z * positioning]}
-            aliveNeighbourCount={aliveNeighbourCount}
-          />
-        ) : null;
-      })}
-    </>
+    <></>
   );
 };
 
@@ -205,7 +215,7 @@ const WebApp = () => {
   return (
     <div style={{ height: "100%", position: "relative" }}>
       <VRCanvas>
-        {/* <color attach="background" args={["black"]} /> */}
+        <color attach="background" args={["black"]} />
         <ambientLight castShadow />
         <directionalLight castShadow position={[10, 10, 10]} />
         <directionalLight castShadow position={[-20, 30, 10]} />

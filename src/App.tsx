@@ -1,7 +1,5 @@
 import React, {
-  useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -49,39 +47,6 @@ const CameraControls = () => {
   //@ts-ignore
   return <orbitControls ref={controls} args={[camera, domElement]} />;
 };
-
-function Cell(
-  props: MeshProps & {
-    size: number;
-    alive: boolean;
-    coordinate: { x: number; y: number; z: number };
-    aliveNeighbourCount: number;
-  }
-) {
-  const { size, aliveNeighbourCount } = props;
-  const ref = React.useRef<any>();
-
-  const [on, turn] = useState(false);
-  const [colorGradient] = useState(
-    new Gradient().setGradient("#90ee90", "#00FF00").setMidpoint(4)
-  );
-
-  return (
-    <mesh
-      castShadow
-      receiveShadow
-      {...props}
-      ref={ref}
-      onClick={() => turn(!on)}
-    >
-      <boxGeometry args={[size, size, size]} />
-      <meshLambertMaterial
-        color={colorGradient.getArray()[aliveNeighbourCount]}
-        transparent
-      />
-    </mesh>
-  );
-}
 
 const getRandomState = () =>
   flattenDeep<CellState>(
@@ -181,7 +146,7 @@ const App = (props: { resetSignal: Signal<any> }) => {
       }
     }, 1000 / 60);
     return () => clearTimeout(timeout);
-  }, [cells]);
+  }, [cells, worker]);
 
   const reset = () => {
     workerRequestId.current = undefined;

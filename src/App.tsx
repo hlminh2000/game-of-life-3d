@@ -12,6 +12,8 @@ import { softShadows } from "@react-three/drei";
 import { VRCanvas } from "@react-three/xr";
 import { CellState } from "./utils";
 import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
+//@ts-ignore
+import getWorker from './worker/compute.worker';
 
 const cellSize = 0.5;
 const spacingFactor = 1;
@@ -110,9 +112,7 @@ const meshes = getRandomState()
 
 const App = (props: { resetSignal: Signal<any> }) => {
   const [cells, setCells] = React.useState(getRandomState());
-  const [worker] = React.useState(
-    new Worker(new URL("./worker", import.meta.url))
-  );
+  const [worker] = React.useState(getWorker());
 
   const workerRequestId = useRef<number>();
   React.useEffect(() => {

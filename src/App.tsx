@@ -12,7 +12,7 @@ import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
 import { VRCanvas, DefaultXRControllers, RayGrab } from "@react-three/xr";
 import { CellState } from "./utils";
-import { BoxGeometry, Mesh, MeshLambertMaterial, Object3D } from "three";
+import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
 //@ts-ignore
 import getWorker from './worker/compute.worker';
 

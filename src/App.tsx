@@ -1,4 +1,5 @@
 import React, {
+  ReactElement,
   useEffect,
   useRef,
   useState,
@@ -11,7 +12,7 @@ import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
 import { VRCanvas, DefaultXRControllers, RayGrab } from "@react-three/xr";
 import { CellState } from "./utils";
-import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
+import { BoxGeometry, Mesh, MeshLambertMaterial, Object3D } from "three";
 //@ts-ignore
 import getWorker from './worker/compute.worker';
 
@@ -71,7 +72,7 @@ const getRandomState = () =>
     )
   );
 
-const Container = () => {
+const Container = ({children}: {children: ReactElement}) => {
   return (
     <mesh castShadow receiveShadow>
       <boxGeometry
@@ -87,6 +88,7 @@ const Container = () => {
         opacity={0.1}
         transparent
       />
+      {children}
     </mesh>
   );
 };
@@ -174,7 +176,9 @@ const App = (props: { resetSignal: Signal<any> }) => {
 
   return (
     <RayGrab>
-      <mesh ref={containerMesh}></mesh>
+      <Container>
+          <mesh ref={containerMesh}></mesh>
+      </Container>
     </RayGrab>
   );
 };
@@ -191,7 +195,6 @@ const WebApp = () => {
         <directionalLight castShadow position={[-20, 30, 10]} />
         <CameraControls />
         <App resetSignal={signal} />
-        <Container />
       </VRCanvas>
       <button
         onClick={() => signal.emit(true)}

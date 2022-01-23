@@ -7,7 +7,7 @@ export type CellState = {
   aliveNeighbourCount: number;
 };
 
-const neighborTable = [
+export const neighborTable = [
   [-1, -1, -1],
   [-1, -1, 0],
   [-1, -1, 1],

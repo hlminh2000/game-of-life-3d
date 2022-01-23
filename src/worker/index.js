@@ -42,21 +42,25 @@ const shouldLive = ({ currentlyAlive, aliveNeighbours }) => {
 };
 
 const cellId = (x, y, z) => `(${x})-(${y})-(${z})`;
-const computeNextState = (cells) => {
-  console.time('compute')
+const computeNextState = ({cells, universeSize}) => {
+  console.log('====================')
+  console.time('total')
+  console.time('indexing')
   const cellsIndex = cells.reduce((acc, c) => {
     acc[c.id] = c;
     return acc;
   }, {});
+  console.timeEnd('indexing')
+  console.time('compute')
   const updatedCells = cells.map((c) => {
-    const neighbours = neighborTable
-      .map(([xOffset, yOffset, zOffset]) => ({
-        x: c.coordinate.x + xOffset,
-        y: c.coordinate.y + yOffset,
-        z: c.coordinate.z + zOffset,
-      }))
-      .map(({ x, y, z }) => cellsIndex[cellId(x, y, z)]);
-    const aliveSurroundingCells = neighbours.filter((c) => c?.alive).length;
+    const aliveSurroundingCells = neighborTable
+      .map(([ x, y, z ]) => cellsIndex[cellId(
+        c.coordinate.x + x, 
+        c.coordinate.y + y, 
+        c.coordinate.z + z
+      )])
+      .filter((c) => c?.alive)
+      .length;
     const newLiveState = shouldLive({
       aliveNeighbours: aliveSurroundingCells,
       currentlyAlive: c.alive,
@@ -68,7 +72,9 @@ const computeNextState = (cells) => {
       aliveNeighbourCount: aliveSurroundingCells,
     };
   });
-  console.timeEnd('compute')
+  console.timeEnd('compute');
+  console.timeEnd('total');
+  console.log('alive %: ', updatedCells.filter((c) => c.alive).length / updatedCells.length)
   return updatedCells;
 };
 

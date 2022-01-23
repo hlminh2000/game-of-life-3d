@@ -19,9 +19,9 @@ import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
 const cellSize = 0.5;
 const spacingFactor = 1;
 const sceneDimentions = {
-  x: 40,
-  y: 40,
-  z: 40,
+  x: 30,
+  y: 30,
+  z: 30,
 };
 
 softShadows({
@@ -95,8 +95,9 @@ const getRandomState = () =>
             id: `(${xCoord})-(${yCoord})-(${zCoord})`,
             coordinate: { x: xCoord, y: yCoord, z: zCoord },
             alive:
-              Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 5 &&
-              Math.random() < 0.01,
+              Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 3 &&
+              Math.random() < 0.05,
+              // Math.random() < 0.1,
             aliveNeighbourCount: 0,
           };
         })
@@ -109,9 +110,9 @@ const Container = () => {
     <mesh castShadow receiveShadow>
       <boxGeometry
         args={[
-          cellSize * sceneDimentions.x + cellSize,
-          cellSize * sceneDimentions.y + cellSize,
-          cellSize * sceneDimentions.z + cellSize,
+          cellSize * sceneDimentions.x * spacingFactor,
+          cellSize * sceneDimentions.y * spacingFactor,
+          cellSize * sceneDimentions.z * spacingFactor,
         ]}
       />
       <meshStandardMaterial
@@ -126,7 +127,7 @@ const Container = () => {
 
 const boxGeometry = new BoxGeometry(cellSize, cellSize, cellSize);
 const material = new MeshLambertMaterial({ color: "orange" });
-material.transparent = true
+material.transparent = true;
 const meshes = getRandomState()
   .map(({ coordinate: { x, y, z }, id }) => {
     const positioning = cellSize * spacingFactor;
@@ -138,16 +139,13 @@ const meshes = getRandomState()
     mesh.position.z = z * positioning;
     return { id, mesh };
   })
-  .reduce(
-    (acc, { id, mesh }) => {
-      acc[id] = mesh;
-      return acc
-    },
-    {} as { [k: string]: Mesh }
-  );
+  .reduce((acc, { id, mesh }) => {
+    acc[id] = mesh;
+    return acc;
+  }, {} as { [k: string]: Mesh });
 
 const App = (props: { resetSignal: Signal<any> }) => {
-  const [cells, setCells] = React.useState(getRandomState);
+  const [cells, setCells] = React.useState(getRandomState());
   const [worker] = React.useState(
     new Worker(new URL("./worker", import.meta.url))
   );
@@ -172,12 +170,16 @@ const App = (props: { resetSignal: Signal<any> }) => {
 
   React.useEffect(() => {
     const timeout = setTimeout(() => {
-      workerRequestId.current = Math.random();
-      worker.postMessage({
-        payload: cells,
-        requestId: workerRequestId.current,
-      });
-    }, 200);
+      if (cells.every((cell) => !cell.alive)) {
+        reset();
+      } else {
+        workerRequestId.current = Math.random();
+        worker.postMessage({
+          payload: {cells, universeSize: sceneDimentions},
+          requestId: workerRequestId.current,
+        });
+      }
+    }, 1000 / 60);
     return () => clearTimeout(timeout);
   }, [cells]);
 
@@ -190,24 +192,25 @@ const App = (props: { resetSignal: Signal<any> }) => {
     props.resetSignal.add(reset);
   }, [props.resetSignal]);
 
-  useEffect(() => {
-    if (cells.every((cell) => !cell.alive)) {
-      reset();
-    }
-  }, [cells]);
-
   const { scene } = useThree();
-
+  const containerMesh = new Mesh();
+  scene.add(containerMesh)
   useFrame(() => {
     cells.forEach((c) => {
-      if (c.alive) scene.add(meshes[c.id]);
-      else scene.remove(meshes[c.id]);
+      const mesh = meshes[c.id];
+      if(c.alive){
+        if(!mesh.parent){
+          scene.add(meshes[c.id])
+        }
+      } else {
+        if(mesh.parent){
+          scene.remove(meshes[c.id])
+        }
+      }
     });
   });
 
-  return (
-    <></>
-  );
+  return <></>;
 };
 
 const WebApp = () => {

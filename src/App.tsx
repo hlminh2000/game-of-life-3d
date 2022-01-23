@@ -9,13 +9,13 @@ import { flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
-import { VRCanvas } from "@react-three/xr";
+import { VRCanvas, DefaultXRControllers, RayGrab } from "@react-three/xr";
 import { CellState } from "./utils";
 import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
 //@ts-ignore
 import getWorker from './worker/compute.worker';
 
-const cellSize = 0.5;
+const cellSize = 0.1;
 const spacingFactor = 1;
 const sceneDimentions = {
   x: 30,
@@ -63,7 +63,7 @@ const getRandomState = () =>
             alive:
               Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 3 &&
               Math.random() < 0.05,
-              // Math.random() < 0.1,
+              // Math.random() < 0.01,
             aliveNeighbourCount: 0,
           };
         })
@@ -143,7 +143,7 @@ const App = (props: { resetSignal: Signal<any> }) => {
           requestId: workerRequestId.current,
         });
       }
-    }, 1000 / 60);
+    }, 500);
     return () => clearTimeout(timeout);
   }, [cells, worker]);
 
@@ -156,25 +156,27 @@ const App = (props: { resetSignal: Signal<any> }) => {
     props.resetSignal.add(reset);
   }, [props.resetSignal]);
 
-  const { scene } = useThree();
-  const containerMesh = new Mesh();
-  scene.add(containerMesh)
+  const containerMesh = useRef<Mesh>()
   useFrame(() => {
     cells.forEach((c) => {
       const mesh = meshes[c.id];
       if(c.alive){
         if(!mesh.parent){
-          scene.add(meshes[c.id])
+          containerMesh.current?.add(meshes[c.id])
         }
       } else {
         if(mesh.parent){
-          scene.remove(meshes[c.id])
+          containerMesh.current?.remove(meshes[c.id])
         }
       }
     });
   });
 
-  return <></>;
+  return (
+    <RayGrab>
+      <mesh ref={containerMesh}></mesh>
+    </RayGrab>
+  );
 };
 
 const WebApp = () => {
@@ -183,6 +185,7 @@ const WebApp = () => {
     <div style={{ height: "100%", position: "relative" }}>
       <VRCanvas>
         <color attach="background" args={["black"]} />
+        <DefaultXRControllers />
         <ambientLight castShadow />
         <directionalLight castShadow position={[10, 10, 10]} />
         <directionalLight castShadow position={[-20, 30, 10]} />

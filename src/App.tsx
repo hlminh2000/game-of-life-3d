@@ -1,10 +1,5 @@
-import React, {
-  ReactElement,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {  useFrame, extend, useThree } from "@react-three/fiber";
+import React, { ReactElement, useEffect, useRef, useState } from "react";
+import { useFrame, extend, useThree } from "@react-three/fiber";
 import range from "lodash/range";
 import { flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
@@ -14,9 +9,9 @@ import { VRCanvas, DefaultXRControllers, RayGrab } from "@react-three/xr";
 import { CellState } from "./utils";
 import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
 //@ts-ignore
-import getWorker from './worker/compute.worker';
+import getWorker from "./worker/compute.worker";
 
-const cellSize = 0.1;
+const cellSize = 0.5;
 const spacingFactor = 1;
 const sceneDimentions = {
   x: 30,
@@ -64,7 +59,7 @@ const getRandomState = () =>
             alive:
               Math.sqrt(xCoord ** 2 + yCoord ** 2 + zCoord ** 2) < 3 &&
               Math.random() < 0.05,
-              // Math.random() < 0.01,
+            // Math.random() < 0.01,
             aliveNeighbourCount: 0,
           };
         })
@@ -72,7 +67,7 @@ const getRandomState = () =>
     )
   );
 
-const Container = ({children}: {children: ReactElement}) => {
+const Container = ({ children }: { children: ReactElement }) => {
   return (
     <mesh castShadow receiveShadow>
       <boxGeometry
@@ -141,11 +136,11 @@ const App = (props: { resetSignal: Signal<any> }) => {
       } else {
         workerRequestId.current = Math.random();
         worker.postMessage({
-          payload: {cells, universeSize: sceneDimentions},
+          payload: { cells, universeSize: sceneDimentions },
           requestId: workerRequestId.current,
         });
       }
-    }, 500);
+    }, 1000 / 60);
     return () => clearTimeout(timeout);
   }, [cells, worker]);
 
@@ -158,17 +153,17 @@ const App = (props: { resetSignal: Signal<any> }) => {
     props.resetSignal.add(reset);
   }, [props.resetSignal]);
 
-  const containerMesh = useRef<Mesh>()
+  const containerMesh = useRef<Mesh>();
   useFrame(() => {
     cells.forEach((c) => {
       const mesh = meshes[c.id];
-      if(c.alive){
-        if(!mesh.parent){
-          containerMesh.current?.add(meshes[c.id])
+      if (c.alive) {
+        if (!mesh.parent) {
+          containerMesh.current?.add(meshes[c.id]);
         }
       } else {
-        if(mesh.parent){
-          containerMesh.current?.remove(meshes[c.id])
+        if (mesh.parent) {
+          containerMesh.current?.remove(meshes[c.id]);
         }
       }
     });
@@ -177,7 +172,7 @@ const App = (props: { resetSignal: Signal<any> }) => {
   return (
     <RayGrab>
       <Container>
-          <mesh ref={containerMesh}></mesh>
+        <mesh ref={containerMesh}></mesh>
       </Container>
     </RayGrab>
   );
@@ -198,7 +193,17 @@ const WebApp = () => {
       </VRCanvas>
       <button
         onClick={() => signal.emit(true)}
-        style={{ position: "absolute", top: 0, left: 0 }}
+        style={{
+          margin: 10,
+          padding: "5px 10px",
+          borderRadius: 10,
+          color: 'white',
+          background: 'blue',
+
+          position: "absolute",
+          top: 0,
+          left: 0 
+        }}
       >
         reset
       </button>

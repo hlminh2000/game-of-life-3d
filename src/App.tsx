@@ -1,7 +1,7 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { useFrame, extend, useThree } from "@react-three/fiber";
 import range from "lodash/range";
-import { flattenDeep } from "lodash";
+import { chunk, flattenDeep } from "lodash";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Signal } from "signal-ts";
 import { softShadows } from "@react-three/drei";
@@ -10,13 +10,14 @@ import { CellState } from "./utils";
 import { BoxGeometry, Mesh, MeshLambertMaterial } from "three";
 //@ts-ignore
 import getWorker from "./worker/compute.worker";
+import promiseSequential from "promise-sequential";
 
 const cellSize = 0.5;
 const spacingFactor = 1;
 const sceneDimentions = {
-  x: 30,
-  y: 30,
-  z: 30,
+  x: 50,
+  y: 50,
+  z: 50,
 };
 
 softShadows({
@@ -153,18 +154,23 @@ const App = (props: { resetSignal: Signal<any> }) => {
     props.resetSignal.add(reset);
   }, [props.resetSignal]);
 
+  useEffect(() => {
+    cells.forEach((c) => {
+      const mesh = meshes[c.id];
+      mesh.position.x = 10000;
+      containerMesh.current?.add(mesh);
+    });
+  }, []);
+
   const containerMesh = useRef<Mesh>();
-  useFrame(() => {
+  useFrame(async () => {
     cells.forEach((c) => {
       const mesh = meshes[c.id];
       if (c.alive) {
-        if (!mesh.parent) {
-          containerMesh.current?.add(meshes[c.id]);
-        }
+        const positioning = cellSize * spacingFactor;
+        mesh.position.x = c.coordinate.x * positioning;
       } else {
-        if (mesh.parent) {
-          containerMesh.current?.remove(meshes[c.id]);
-        }
+        mesh.position.x = 10000;
       }
     });
   });
@@ -197,12 +203,12 @@ const WebApp = () => {
           margin: 10,
           padding: "5px 10px",
           borderRadius: 10,
-          color: 'white',
-          background: 'blue',
+          color: "white",
+          background: "blue",
 
           position: "absolute",
           top: 0,
-          left: 0 
+          left: 0,
         }}
       >
         reset
